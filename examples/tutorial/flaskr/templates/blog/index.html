@@ -8,6 +8,13 @@
 {% endblock %}
 
 {% block content %}
+  <form class="search" method="get" action="{{ url_for('blog.index') }}">
+    <input type="search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Search posts" aria-label="Search posts">
+    <input type="submit" value="Search">
+    {% if request.args.get('q') %}
+      <a class="action" href="{{ url_for('blog.index') }}">Clear</a>
+    {% endif %}
+  </form>
   {% for post in posts %}
     <article class="post">
       <header>
@@ -23,6 +30,10 @@
     </article>
     {% if not loop.last %}
       <hr>
+    {% endif %}
+  {% else %}
+    {% if request.args.get('q') %}
+      <p>No posts found matching your search.</p>
     {% endif %}
   {% endfor %}
 {% endblock %}
