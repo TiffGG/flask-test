@@ -32,6 +32,8 @@
       <hr>
     {% endif %}
   {% else %}
-    <p>No posts found matching your search.</p>
+    {% if request.args.get('q') %}
+      <p>No posts found matching your search.</p>
+    {% endif %}
   {% endfor %}
 {% endblock %}

@@ -150,3 +150,19 @@ def test_clear_link(client):
     assert CLEAR_LINK in client.get("/?q=nomatch").data
     assert CLEAR_LINK not in client.get("/").data
     assert CLEAR_LINK not in client.get("/?q=").data
+
+
+def test_no_results_message_only_when_searching(client, app):
+    with app.app_context():
+        db = get_db()
+        db.execute("DELETE FROM post")
+        db.commit()
+
+    assert NO_RESULTS not in client.get("/").data
+
+
+def test_search_query_is_escaped(client):
+    response = client.get("/?q=<script>x</script>")
+    assert response.status_code == 200
+    assert b"<script>x</script>" not in response.data
+    assert b"&lt;script&gt;x&lt;/script&gt;" in response.data
