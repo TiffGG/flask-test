@@ -81,3 +81,72 @@ def test_delete(client, auth, app):
         db = get_db()
         post = db.execute("SELECT * FROM post WHERE id = 1").fetchone()
         assert post is None
+
+
+CLEAR_LINK = b'<a class="action" href="/">Clear</a>'
+NO_RESULTS = b"No posts found matching your search."
+
+
+def _add_post(app, title, body):
+    with app.app_context():
+        db = get_db()
+        db.execute(
+            "INSERT INTO post (title, body, author_id, created)"
+            " VALUES (?, ?, 1, '2018-01-02 00:00:00')",
+            (title, body),
+        )
+        db.commit()
+
+
+def test_search_matches_title(client, app):
+    _add_post(app, "other post", "unrelated")
+    response = client.get("/?q=title")
+    assert b"test title" in response.data
+    assert b"other post" not in response.data
+
+
+def test_search_matches_body(client, app):
+    _add_post(app, "other post", "unrelated")
+    response = client.get("/?q=unrelated")
+    assert b"other post" in response.data
+    assert b"test title" not in response.data
+
+
+def test_search_case_insensitive(client):
+    response = client.get("/?q=TEST TITLE")
+    assert b"test title" in response.data
+
+
+@pytest.mark.parametrize("path", ("/", "/?q=", "/?q=%20%20"))
+def test_search_empty_returns_all(client, app, path):
+    _add_post(app, "other post", "unrelated")
+    response = client.get(path)
+    assert b"test title" in response.data
+    assert b"other post" in response.data
+    assert response.data.count(b'<article class="post">') == 2
+
+
+def test_search_no_results(client):
+    response = client.get("/?q=nomatch")
+    assert response.status_code == 200
+    assert NO_RESULTS in response.data
+    assert b'<article class="post">' not in response.data
+
+
+def test_search_without_login(client):
+    response = client.get("/?q=test")
+    assert response.status_code == 200
+    assert b"Log In" in response.data
+    assert b"test title" in response.data
+
+
+def test_search_form_value(client):
+    response = client.get("/?q=hello")
+    assert b'name="q" value="hello"' in response.data
+
+
+def test_clear_link(client):
+    assert CLEAR_LINK in client.get("/?q=test").data
+    assert CLEAR_LINK in client.get("/?q=nomatch").data
+    assert CLEAR_LINK not in client.get("/").data
+    assert CLEAR_LINK not in client.get("/?q=").data
